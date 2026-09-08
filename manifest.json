@@ -1,0 +1,9 @@
+{
+  "id": "graphiques",
+  "name": "Graphiques",
+  "version": "1.2.0",
+  "minAppVersion": "1.4.0",
+  "description": "Créez des graphiques et des figures dans vos notes : repère, courbes de fonctions, droites, formes géométriques, points d'intersection calculés, export PNG et PDF.",
+  "author": "Pierre Pocass",
+  "isDesktopOnly": false
+}

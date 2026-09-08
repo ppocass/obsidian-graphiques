@@ -1,0 +1,350 @@
+/* Tout est exprimé avec les variables d'Obsidian : le plugin suit le thème
+   installé (Cupertino ici) au lieu d'imposer ses propres couleurs et rayons. */
+
+.graphique-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+  outline: none;
+}
+
+/* ----------------------------- barre d'outils ----------------------------- */
+
+.graphique-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--size-2-2, 4px);
+  padding: var(--size-4-2, 8px) var(--size-4-3, 12px);
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.graphique-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s, 4px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1;
+  cursor: var(--cursor, pointer);
+  transition: background-color 80ms ease, color 80ms ease;
+}
+.graphique-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.graphique-btn.is-active,
+.graphique-btn.is-active:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.graphique-btn svg { width: 17px; height: 17px; }
+
+.graphique-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 var(--size-2-2, 4px);
+  background: var(--background-modifier-border);
+}
+
+/* pastille de couleur : on masque le rendu natif du navigateur */
+.graphique-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background: none;
+  box-shadow: none;
+  cursor: var(--cursor, pointer);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.graphique-swatch::-webkit-color-swatch-wrapper { padding: 2px; }
+.graphique-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: calc(var(--radius-s, 4px) - 1px);
+}
+
+.graphique-coords {
+  margin-left: auto;
+  padding-left: var(--size-4-2, 8px);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------- corps ---------------------------------- */
+
+.graphique-body { display: flex; flex: 1; min-height: 0; }
+
+.graphique-stage { flex: 1; min-width: 0; position: relative; }
+.graphique-stage canvas { display: block; cursor: grab; }
+
+/* ------------------------------- panneau --------------------------------- */
+
+.graphique-panel {
+  width: var(--graphique-panel-width, 250px);
+  flex-shrink: 0;
+  padding: var(--size-4-3, 12px);
+  overflow-y: auto;
+  background: var(--background-secondary);
+  border-right: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.graphique-panel-title {
+  margin: var(--size-4-4, 16px) 0 var(--size-4-2, 8px);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold, 600);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.graphique-selection .graphique-panel-title { margin-top: 0; }
+
+.graphique-panel input[type="text"],
+.graphique-panel input[type="number"] {
+  height: var(--input-height, 30px);
+  font-size: var(--font-ui-small);
+  min-width: 0;
+}
+
+/* --------------------------- bloc « sélection » --------------------------- */
+
+.graphique-selection { margin-bottom: var(--size-4-2, 8px); }
+
+.graphique-selection-empty {
+  padding-bottom: var(--size-4-1, 4px);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.graphique-eq {
+  margin-bottom: var(--size-4-1, 4px);
+  padding: var(--size-4-2, 8px);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m, 6px);
+  background: var(--background-primary);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.graphique-sub {
+  margin-bottom: var(--size-4-2, 8px);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.graphique-eq-input { width: 100%; margin-bottom: var(--size-4-2, 8px); }
+
+.graphique-field {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+  margin-bottom: var(--size-4-1, 4px);
+}
+.graphique-field label {
+  width: 64px;
+  flex-shrink: 0;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.graphique-field input { flex: 1; }
+
+.graphique-style-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2, 4px);
+  margin-top: var(--size-4-2, 8px);
+}
+.graphique-style-row select {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  font-size: var(--font-ui-smaller);
+}
+
+.graphique-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-width: 30px;
+  padding: 0 var(--size-4-1, 4px);
+  flex-shrink: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s, 4px);
+  background: var(--background-primary);
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: var(--cursor, pointer);
+  transition: background-color 80ms ease, color 80ms ease;
+}
+.graphique-toggle:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.graphique-toggle.is-active {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.graphique-toggle svg { width: 15px; height: 15px; }
+.graphique-danger:hover { color: var(--text-error); }
+
+/* -------------------------------- courbes -------------------------------- */
+
+.graphique-fn {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2, 4px);
+  margin-bottom: var(--size-4-1, 4px);
+}
+
+.graphique-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 26px;
+  padding: 0;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-s, 4px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  cursor: var(--cursor, pointer);
+  transition: background-color 80ms ease, color 80ms ease;
+}
+.graphique-mini:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.graphique-mini.is-active { color: var(--text-accent); }
+.graphique-mini svg { width: 15px; height: 15px; }
+
+.graphique-fn-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller) !important;
+}
+.graphique-fn-input.is-error {
+  border-color: var(--text-error);
+  color: var(--text-error);
+}
+
+.graphique-bounds {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1, 4px);
+  margin: 0 0 var(--size-4-2, 8px) 28px;
+}
+.graphique-bounds label { font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.graphique-bounds input { flex: 1; min-width: 0; height: 26px !important; }
+
+.graphique-add {
+  width: 100%;
+  margin-top: var(--size-4-1, 4px);
+  font-size: var(--font-ui-smaller);
+}
+
+/* -------------------------------- repère --------------------------------- */
+
+.graphique-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2, 8px);
+  margin: var(--size-4-1, 4px) 0;
+}
+.graphique-opt input[type="checkbox"] { margin: 0; flex-shrink: 0; }
+.graphique-opt label { color: var(--text-muted); cursor: var(--cursor, pointer); }
+
+.graphique-scales {
+  display: flex;
+  gap: var(--size-4-2, 8px);
+  margin: var(--size-4-3, 12px) 0 var(--size-4-2, 8px);
+}
+.graphique-scale { flex: 1; min-width: 0; }
+.graphique-scale label {
+  display: block;
+  margin-bottom: var(--size-2-2, 4px);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+.graphique-scale input { width: 100%; }
+
+.graphique-axis-names {
+  display: flex;
+  gap: var(--size-4-2, 8px);
+  margin-top: var(--size-4-2, 8px);
+}
+.graphique-axis-names input { width: 50%; }
+
+/* ------------------------------ raccourcis ------------------------------- */
+
+.graphique-help { margin-top: var(--size-4-4, 16px); }
+.graphique-help summary {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  cursor: var(--cursor, pointer);
+  list-style: none;
+  outline: none;
+}
+.graphique-help summary::-webkit-details-marker { display: none; }
+.graphique-help summary::before {
+  content: '›';
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 120ms ease;
+}
+.graphique-help[open] summary::before { transform: rotate(90deg); }
+.graphique-hint {
+  margin-top: var(--size-4-2, 8px);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.7;
+  color: var(--text-faint);
+}
+
+/* --------------------------- aperçu dans une note ------------------------- */
+
+.graphique-embed { position: relative; margin: var(--size-4-2, 8px) 0; }
+.graphique-embed canvas {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m, 6px);
+}
+.graphique-embed-open {
+  position: absolute;
+  top: var(--size-4-2, 8px);
+  right: var(--size-4-2, 8px);
+  height: 26px;
+  padding: 0 var(--size-4-2, 8px);
+  font-size: var(--font-ui-smaller);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.graphique-embed:hover .graphique-embed-open { opacity: 1; }
+.graphique-embed-error {
+  padding: var(--size-4-3, 12px);
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: var(--radius-m, 6px);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-error);
+}
