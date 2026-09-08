@@ -87,6 +87,12 @@ const STRINGS = {
     'sel.bound': 'Extrémité accrochée à un point : elle le suit.',
     'sel.tangent': 'Tangente à %s en x = %s',
     'sel.rotation': 'Rotation (°)',
+    'sel.follow': 'Suivre les objets',
+    'sel.following': '%s sommets sur %s suivent la géométrie.',
+    'menu.follow': 'Faire suivre la géométrie',
+    'menu.unfollow': 'Détacher de la géométrie',
+    'hint.anchored': 'Zone accrochée : %s sommets suivent.',
+    'hint.notAnchored': 'Aucun sommet ne touche une droite ou une courbe.',
     'hint.tangentPick': 'Cliquez une courbe à l\'endroit voulu.',
     'hint.tangentDone': 'Tangente en x = %s',
     'hint.tangentCurveOnly': 'La tangente s\'applique à une courbe saisie au clavier.',
@@ -268,6 +274,12 @@ const STRINGS = {
     'menu.detach': 'Detach from computation',
     'menu.solid': 'Solid line',
     'menu.dashed': 'Dashed line',
+    'sel.follow': 'Follow objects',
+    'sel.following': '%s of %s vertices follow the geometry.',
+    'menu.follow': 'Follow the geometry',
+    'menu.unfollow': 'Detach from the geometry',
+    'hint.anchored': 'Shape attached: %s vertices now follow.',
+    'hint.notAnchored': 'No vertex sits on a line or a curve.',
     'menu.rename': 'Rename',
     'menu.duplicate': 'Duplicate',
     'menu.delete': 'Delete',
@@ -731,6 +743,59 @@ function syncLinks(model, x0, x1) {
   }
 
   applyBindings(model);
+  applyAnchors(model, x0, x1);
+}
+
+/* Sommets de zone accrochés à la géométrie : un sommet posé sur une droite y
+   reste, un sommet posé sur un croisement suit le croisement. */
+function applyAnchors(model, x0, x1) {
+  const objById = {}, fnById = {};
+  for (const o of model.objects) objById[o.id] = o;
+  for (const f of model.functions) fnById[f.id] = f;
+
+  const commeCourbe = (id) => {
+    const o = objById[id];
+    if (o) return (o.t === 'seg' || o.t === 'line' || o.t === 'arrow') ? { kind: 'line', o } : null;
+    const fn = fnById[id];
+    if (!fn) return null;
+    const f = safeCompile(fn.expr);
+    return f ? { kind: 'fn', f } : null;
+  };
+
+  for (const poly of model.objects) {
+    if (poly.t !== 'poly' || !poly.anchors) continue;
+    for (let i = 0; i < poly.pts.length; i++) {
+      const a = poly.anchors[i];
+      if (!a) continue;
+
+      if (a.p) {
+        const pt = objById[a.p];
+        if (pt) poly.pts[i] = [pt.x, pt.y];
+        continue;
+      }
+      if (a.i) {
+        const A = commeCourbe(a.i[0]), B = commeCourbe(a.i[1]);
+        if (!A || !B) continue;
+        const q = intersectionsOf(A, B, x0, x1)[a.k || 0];
+        if (q) poly.pts[i] = [round3(q.x), round3(q.y)];
+        continue;
+      }
+      if (a.on) {
+        const o = objById[a.on];
+        if (!o) continue;
+        poly.pts[i] = [round3(o.x1 + (o.x2 - o.x1) * a.t), round3(o.y1 + (o.y2 - o.y1) * a.t)];
+        continue;
+      }
+      if (a.fn) {
+        const fn = fnById[a.fn];
+        if (!fn) continue;
+        const f = safeCompile(fn.expr);
+        if (!f) continue;
+        const y = f(a.x);
+        if (isFinite(y)) poly.pts[i] = [round3(a.x), round3(y)];
+      }
+    }
+  }
 }
 
 /* Une extrémité accrochée à un point le suit. Appelé après le calcul des
@@ -1635,6 +1700,16 @@ class GraphiqueView extends TextFileView {
       }
       box.createDiv({ cls: 'graphique-sub' })
         .setText(tr('sel.polygon', pts.length, fmt(Math.round(Math.abs(area / 2) * 100) / 100)));
+
+      if (o.anchors) {
+        const suivis = o.anchors.filter(Boolean).length;
+        box.createDiv({ cls: 'graphique-sub' }).setText(tr('sel.following', suivis, pts.length));
+      }
+      const suivre = box.createEl('button', {
+        cls: 'graphique-add',
+        text: o.anchors ? tr('menu.unfollow') : tr('sel.follow'),
+      });
+      suivre.onclick = () => this.toggleAnchors(o);
     }
 
     const num = (label, get, set) => {
@@ -1771,6 +1846,12 @@ class GraphiqueView extends TextFileView {
           .onClick(() => { this.pushHistory(); delete o.link; this.save(); this.renderSelection(); }));
       }
     }
+    if (o.t === 'poly') {
+      menu.addItem((it) => it
+        .setTitle(tr(o.anchors ? 'menu.unfollow' : 'menu.follow'))
+        .setIcon(o.anchors ? 'unlink' : 'link')
+        .onClick(() => this.toggleAnchors(o)));
+    }
     if (isLine || o.t === 'poly' || o.t === 'ellipse') {
       menu.addItem((it) => it.setTitle(tr(o.dash ? 'menu.solid' : 'menu.dashed'))
         .setIcon('minus').onClick(() => { this.pushHistory(); o.dash = !o.dash; this.save(); this.renderSelection(); }));
@@ -1903,6 +1984,87 @@ class GraphiqueView extends TextFileView {
     this.save();
     this.renderSelection();
     this.hint(tr('hint.tangentDone', fmt(round3(x))));
+  }
+
+  /* Cherche, pour chaque sommet d'une zone, ce sur quoi il est posé :
+     un point, un croisement de deux objets, une droite, ou une courbe. */
+  anchorPolygon(o) {
+    const rect = this.canvas.getBoundingClientRect();
+    const T = makeTransform(this.model, rect.width, rect.height);
+    const x0 = T.wx(0), x1 = T.wx(rect.width);
+    const tol = 6;
+    const anchors = [];
+    let n = 0;
+
+    const descripteur = (id) => {
+      const q = this.model.objects.find((z) => z.id === id);
+      if (q) return { kind: 'line', o: q };
+      const fn = this.model.functions.find((z) => z.id === id);
+      const f = fn && safeCompile(fn.expr);
+      return f ? { kind: 'fn', f } : null;
+    };
+
+    for (const [wx, wy] of o.pts) {
+      const px = T.sx(wx), py = T.sy(wy);
+
+      const pt = this.model.objects.find((q) =>
+        q.t === 'point' && Math.hypot(T.sx(q.x) - px, T.sy(q.y) - py) < 9);
+      if (pt) { anchors.push({ p: pt.id }); n++; continue; }
+
+      const lignes = [];
+      for (const q of this.model.objects) {
+        if (q === o || (q.t !== 'seg' && q.t !== 'line' && q.t !== 'arrow')) continue;
+        const ax = T.sx(q.x1), ay = T.sy(q.y1), bx = T.sx(q.x2), by = T.sy(q.y2);
+        const d = q.t === 'line' ? distToLine(px, py, ax, ay, bx, by) : distToSegment(px, py, ax, ay, bx, by);
+        if (d < tol) lignes.push(q.id);
+      }
+      const courbes = [];
+      for (const fn of this.model.functions) {
+        if (fn.visible === false || !fn.expr) continue;
+        const f = safeCompile(fn.expr);
+        if (!f) continue;
+        const y = f(wx);
+        if (isFinite(y) && Math.abs(T.sy(y) - py) < tol) courbes.push(fn.id);
+      }
+
+      const ids = lignes.concat(courbes);
+      if (ids.length >= 2) {
+        const A = descripteur(ids[0]), B = descripteur(ids[1]);
+        const pts = A && B ? intersectionsOf(A, B, x0, x1) : [];
+        let k = 0, mieux = Infinity;
+        pts.forEach((q, idx) => {
+          const d = Math.hypot(q.x - wx, q.y - wy);
+          if (d < mieux) { mieux = d; k = idx; }
+        });
+        if (pts.length) { anchors.push({ i: [ids[0], ids[1]], k }); n++; continue; }
+      }
+      if (lignes.length === 1) {
+        const q = this.model.objects.find((z) => z.id === lignes[0]);
+        const dx = q.x2 - q.x1, dy = q.y2 - q.y1;
+        const len2 = dx * dx + dy * dy;
+        anchors.push({ on: q.id, t: len2 ? ((wx - q.x1) * dx + (wy - q.y1) * dy) / len2 : 0 });
+        n++; continue;
+      }
+      if (courbes.length === 1) { anchors.push({ fn: courbes[0], x: wx }); n++; continue; }
+
+      anchors.push(null);
+    }
+    return { anchors, n };
+  }
+
+  toggleAnchors(o) {
+    if (o.anchors) {
+      this.pushHistory();
+      delete o.anchors;
+      this.save(); this.renderSelection();
+      return;
+    }
+    const res = this.anchorPolygon(o);
+    if (!res.n) { this.hint(tr('hint.notAnchored')); return; }
+    this.pushHistory();
+    o.anchors = res.anchors;
+    this.save(); this.renderSelection();
+    this.hint(tr('hint.anchored', res.n));
   }
 
   /* ---------------- zones ---------------- */
@@ -2061,6 +2223,7 @@ class GraphiqueView extends TextFileView {
 
       if (this.drag.mode === 'move') {
         if (o.link || o.tangent) { this.hint(tr('hint.computed')); return; }
+        if (o.anchors && o.anchors.some(Boolean)) { this.hint(tr('hint.computed')); return; }
         const dx = x - this.drag.x0, dy = y - this.drag.y0;
         const s = this.drag.snapshot;
         const part = this.drag.part || 'all';
