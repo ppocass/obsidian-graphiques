@@ -355,3 +355,6 @@
 .graphique-embed:hover .graphique-embed-actions { opacity: 1; }
 .graphique-embed canvas.is-grabbable { cursor: grab; }
 .graphique-embed canvas.is-panning { cursor: grabbing; }
+
+.graphique-live-embed { margin: var(--size-4-2, 8px) 0; }
+.graphique-live-embed .graphique-embed { margin: 0; }

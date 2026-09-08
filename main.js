@@ -2846,6 +2846,71 @@ class GraphiquesSettingTab extends PluginSettingTab {
   }
 }
 
+/* ================================================================== */
+/*  Affichage en mode édition (Live Preview)                          */
+/* ================================================================== */
+
+/* Le rendu Markdown ne s'applique qu'au mode lecture. Pour que le lien
+   s'affiche aussi pendant l'écriture — là où tout le monde travaille — il faut
+   décorer le texte dans l'éditeur lui-même. Obsidian expose CodeMirror aux
+   plugins, sans étape de compilation. */
+function livePreviewExtension(plugin) {
+  let cm;
+  try { cm = require('@codemirror/view'); } catch (e) { return null; }
+  const state = (() => { try { return require('@codemirror/state'); } catch (e) { return null; } })();
+  if (!cm || !cm.ViewPlugin || !cm.Decoration || !cm.WidgetType || !state || !state.RangeSetBuilder) return null;
+
+  const LIEN = /^!?\[\[([^\]|#^]+\.graph)(?:\|[^\]]*)?\]\]$/;
+
+  class GraphiqueWidget extends cm.WidgetType {
+    constructor(chemin, source) { super(); this.chemin = chemin; this.source = source; }
+    eq(autre) { return autre.chemin === this.chemin; }
+    toDOM() {
+      const hote = document.createElement('div');
+      hote.className = 'graphique-live-embed';
+      const file = plugin.app.metadataCache.getFirstLinkpathDest(this.chemin, this.source || '');
+      if (file instanceof TFile) renderPreview(plugin.app, file, hote, SETTINGS.embedHeight);
+      else hote.textContent = tr('embed.notFound', this.chemin);
+      return hote;
+    }
+    ignoreEvent() { return true; }   // le déplacement et le zoom restent à nous
+  }
+
+  return cm.ViewPlugin.fromClass(class {
+    constructor(vue) { this.decorations = this.construire(vue); }
+    update(maj) {
+      if (maj.docChanged || maj.viewportChanged || maj.selectionSet) {
+        this.decorations = this.construire(maj.view);
+      }
+    }
+    construire(vue) {
+      const builder = new state.RangeSetBuilder();
+      if (!SETTINGS.plainLinkPreview) return builder.finish();
+      const curseur = vue.state.selection.main;
+      const actif = plugin.app.workspace.getActiveFile();
+      const source = actif ? actif.path : '';
+      for (const plage of vue.visibleRanges) {
+        let pos = plage.from;
+        while (pos <= plage.to) {
+          const ligne = vue.state.doc.lineAt(pos);
+          const m = LIEN.exec(ligne.text.trim());
+          // on laisse la ligne en texte brut quand le curseur y est, sinon
+          // elle deviendrait impossible à modifier
+          const curseurDedans = curseur.from <= ligne.to && curseur.to >= ligne.from;
+          if (m && !curseurDedans) {
+            builder.add(ligne.from, ligne.to, cm.Decoration.replace({
+              widget: new GraphiqueWidget(m[1], source),
+              block: true,
+            }));
+          }
+          pos = ligne.to + 1;
+        }
+      }
+      return builder.finish();
+    }
+  }, { decorations: (v) => v.decorations });
+}
+
 module.exports = class GraphiquesPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
@@ -2898,7 +2963,12 @@ module.exports = class GraphiquesPlugin extends Plugin {
       this.embedOk = false;
     }
 
-    // Un lien simple vers un graphique, seul sur sa ligne, vaut une insertion :
+    // en mode édition (Live Preview)
+    const extension = livePreviewExtension(this);
+    if (extension) this.registerEditorExtension(extension);
+
+    // en mode lecture — un lien simple vers un graphique, seul sur sa ligne,
+    // vaut une insertion :
     // écrire le point d'exclamation n'est pas naturel et personne n'y pense.
     this.registerMarkdownPostProcessor((el, ctx) => {
       if (!SETTINGS.plainLinkPreview) return;
