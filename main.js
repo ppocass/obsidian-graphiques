@@ -1419,7 +1419,7 @@ class GraphiqueView extends TextFileView {
     const mk = (icon, fallback, title, fn) => { iconButton(bar, icon, fallback, title).onclick = fn; };
     mk('zoom-out', '−', tr('bar.zoomOut'), () => this.zoomBy(1 / 1.25));
     mk('zoom-in', '+', tr('bar.zoomIn'), () => this.zoomBy(1.25));
-    mk('locate-fixed', '⌂', tr('bar.reset'), () => { this.model.view = Object.assign({}, defaultModel().view); this.save(); this.buildPanel(); });
+    mk('locate-fixed', '⌂', tr('bar.reset'), () => { this.model.view = Object.assign({}, defaultModel().view); this.touch(); this.buildPanel(); });
     mk('download', '⇩', tr('bar.export'), (e) => this.exportMenu(e));
 
     if (SETTINGS.showCoords) this.status = bar.createSpan({ cls: 'graphique-coords' });
@@ -1519,11 +1519,11 @@ class GraphiqueView extends TextFileView {
 
       const eye = iconButton(row, fn.visible === false ? 'eye-off' : 'eye',
         fn.visible === false ? '○' : '●', tr('curve.toggle'), 'graphique-mini');
-      eye.onclick = () => { fn.visible = fn.visible === false; this.save(); this.buildPanel(); };
+      eye.onclick = () => { fn.visible = fn.visible === false; this.touch(); this.buildPanel(); };
 
       const col = row.createEl('input', { type: 'color', cls: 'graphique-swatch' });
       col.value = fn.color || PALETTE[i % PALETTE.length];
-      col.onchange = () => { fn.color = col.value; this.save(); };
+      col.onchange = () => { fn.color = col.value; this.touch(); };
 
       const input = row.createEl('input', { type: 'text', cls: 'graphique-fn-input' });
       input.value = fn.expr || '';
@@ -1533,15 +1533,15 @@ class GraphiqueView extends TextFileView {
         try { compile(input.value); input.removeClass('is-error'); input.title = ''; }
         catch (e) { input.addClass('is-error'); input.title = e.message; }
       };
-      input.oninput = () => { fn.expr = input.value; check(); this.save(); };
+      input.oninput = () => { fn.expr = input.value; check(); this.touch(); };
       check();
 
       const fill = iconButton(row, 'paint-bucket', '▒', tr('curve.fill'), 'graphique-mini');
       fill.toggleClass('is-active', !!fn.fill);
-      fill.onclick = () => { fn.fill = !fn.fill; this.save(); this.buildPanel(); };
+      fill.onclick = () => { fn.fill = !fn.fill; this.touch(); this.buildPanel(); };
 
       const del = iconButton(row, 'x', '×', tr('curve.delete'), 'graphique-mini');
-      del.onclick = () => { this.pushHistory(); this.model.functions.splice(i, 1); this.save(); this.buildPanel(); };
+      del.onclick = () => { this.pushHistory(); this.model.functions.splice(i, 1); this.touch(); this.buildPanel(); };
 
       if (fn.fill) {
         const bounds = list.createDiv({ cls: 'graphique-bounds' });
@@ -1549,12 +1549,12 @@ class GraphiqueView extends TextFileView {
         const a = bounds.createEl('input', { type: 'number' });
         a.step = 'any'; a.value = typeof fn.from === 'number' ? String(fn.from) : '';
         a.placeholder = '−∞';
-        a.onchange = () => { const v = parseFloat(a.value); fn.from = isFinite(v) ? v : undefined; this.save(); };
+        a.onchange = () => { const v = parseFloat(a.value); fn.from = isFinite(v) ? v : undefined; this.touch(); };
         bounds.createEl('label', { text: tr('bounds.to') });
         const b = bounds.createEl('input', { type: 'number' });
         b.step = 'any'; b.value = typeof fn.to === 'number' ? String(fn.to) : '';
         b.placeholder = '+∞';
-        b.onchange = () => { const v = parseFloat(b.value); fn.to = isFinite(v) ? v : undefined; this.save(); };
+        b.onchange = () => { const v = parseFloat(b.value); fn.to = isFinite(v) ? v : undefined; this.touch(); };
       }
     });
 
@@ -1562,7 +1562,7 @@ class GraphiqueView extends TextFileView {
     add.onclick = () => {
       this.pushHistory();
       this.model.functions.push({ id: uid(), expr: '', color: PALETTE[this.model.functions.length % PALETTE.length], visible: true });
-      this.save(); this.buildPanel();
+      this.touch(); this.buildPanel();
       const inputs = this.panel.querySelectorAll('.graphique-fn-input');
       if (inputs.length) inputs[inputs.length - 1].focus();
     };
@@ -1573,7 +1573,7 @@ class GraphiqueView extends TextFileView {
       const row = p.createDiv({ cls: 'graphique-opt' });
       const cb = row.createEl('input', { type: 'checkbox' });
       cb.checked = !!this.model.style[key];
-      cb.onchange = () => { this.model.style[key] = cb.checked; this.save(); };
+      cb.onchange = () => { this.model.style[key] = cb.checked; this.touch(); };
       row.createEl('label', { text: label });
     };
     opt(tr('frame.grid'), 'grid');
@@ -1594,7 +1594,7 @@ class GraphiqueView extends TextFileView {
         const ratio = v / this.model.view[axis];
         this.model.view[axis] = v;
         if (this.model.style.lock) this.model.view[axis === 'sx' ? 'sy' : 'sx'] *= ratio;
-        this.save(); this.buildPanel();
+        this.touch(); this.buildPanel();
       };
     };
     mkScale('sx', tr('frame.scaleX'));
@@ -1603,18 +1603,18 @@ class GraphiqueView extends TextFileView {
     const lockRow = p.createDiv({ cls: 'graphique-opt' });
     const lockCb = lockRow.createEl('input', { type: 'checkbox' });
     lockCb.checked = !!this.model.style.lock;
-    lockCb.onchange = () => { this.model.style.lock = lockCb.checked; this.save(); };
+    lockCb.onchange = () => { this.model.style.lock = lockCb.checked; this.touch(); };
     lockRow.createEl('label', { text: tr('frame.lock') });
 
     const names = p.createDiv({ cls: 'graphique-axis-names' });
     const xi = names.createEl('input', { type: 'text' });
     xi.value = this.model.style.xlabel || '';
     xi.placeholder = tr('frame.xlabel');
-    xi.oninput = () => { this.model.style.xlabel = xi.value; this.save(); };
+    xi.oninput = () => { this.model.style.xlabel = xi.value; this.touch(); };
     const yi = names.createEl('input', { type: 'text' });
     yi.value = this.model.style.ylabel || '';
     yi.placeholder = tr('frame.ylabel');
-    yi.oninput = () => { this.model.style.ylabel = yi.value; this.save(); };
+    yi.oninput = () => { this.model.style.ylabel = yi.value; this.touch(); };
 
     if (SETTINGS.showHelp) {
       const help = p.createEl('details', { cls: 'graphique-help' });
@@ -1650,16 +1650,16 @@ class GraphiqueView extends TextFileView {
       xi.onchange = () => {
         const v = parseFloat(xi.value);
         if (!isFinite(v)) return;
-        this.pushHistory(); o.tangent.x = v; this.save(); this.renderSelection();
+        this.pushHistory(); o.tangent.x = v; this.touch(); this.renderSelection();
       };
       const libre = box.createEl('button', { cls: 'graphique-add', text: tr('sel.detach') });
-      libre.onclick = () => { this.pushHistory(); delete o.tangent; this.save(); this.renderSelection(); };
+      libre.onclick = () => { this.pushHistory(); delete o.tangent; this.touch(); this.renderSelection(); };
     }
 
     if (o.bind) {
       box.createDiv({ cls: 'graphique-sub' }).setText(tr('sel.bound'));
       const libre = box.createEl('button', { cls: 'graphique-add', text: tr('sel.detach') });
-      libre.onclick = () => { this.pushHistory(); delete o.bind; this.save(); this.renderSelection(); };
+      libre.onclick = () => { this.pushHistory(); delete o.bind; this.touch(); this.renderSelection(); };
     }
 
     if (isLine) {
@@ -1682,7 +1682,7 @@ class GraphiqueView extends TextFileView {
         if (Math.abs(o.x2 - o.x1) < 1e-9) { o.x1 -= 1; o.x2 += 1; }
         o.y1 = f(o.x1); o.y2 = f(o.x2);
         eqIn.value = '';
-        this.save(); this.renderSelection();
+        this.touch(); this.renderSelection();
       };
     }
 
@@ -1721,7 +1721,7 @@ class GraphiqueView extends TextFileView {
       inp.onchange = () => {
         const v = parseFloat(inp.value);
         if (!isFinite(v)) return;
-        this.pushHistory(); set(v); this.save(); this.renderSelection();
+        this.pushHistory(); set(v); this.touch(); this.renderSelection();
       };
     };
 
@@ -1738,7 +1738,7 @@ class GraphiqueView extends TextFileView {
       free.onclick = () => {
         this.pushHistory();
         delete o.link;
-        this.save(); this.renderSelection();
+        this.touch(); this.renderSelection();
       };
     } else if (o.t === 'point' || o.t === 'text') {
       num('x', () => o.x, (v) => { o.x = v; });
@@ -1762,7 +1762,7 @@ class GraphiqueView extends TextFileView {
         this.pushHistory();
         if (o.t === 'poly') o.pts = rotatePoints(o.pts, v - (o.rot || 0));
         o.rot = v;
-        this.save(); this.redraw();
+        this.touch(); this.redraw();
       };
     }
 
@@ -1770,12 +1770,12 @@ class GraphiqueView extends TextFileView {
     textRow.createEl('label', { text: o.t === 'text' ? tr('field.text') : tr('field.name') });
     const ti = textRow.createEl('input', { type: 'text' });
     ti.value = (o.t === 'text' ? o.s : o.label) || '';
-    ti.oninput = () => { if (o.t === 'text') o.s = ti.value; else o.label = ti.value; this.save(); };
+    ti.oninput = () => { if (o.t === 'text') o.s = ti.value; else o.label = ti.value; this.touch(); };
 
     const style = box.createDiv({ cls: 'graphique-style-row' });
     const col = style.createEl('input', { type: 'color', cls: 'graphique-swatch', attr: { title: tr('style.color') } });
     col.value = o.color || PALETTE[0];
-    col.onchange = () => { o.color = col.value; this.save(); };
+    col.onchange = () => { o.color = col.value; this.touch(); };
 
     if (o.t === 'poly' || o.t === 'ellipse') {
       const fillBtn = style.createEl('button', { cls: 'graphique-toggle', text: '▨', attr: { title: tr('style.fill') } });
@@ -1783,7 +1783,7 @@ class GraphiqueView extends TextFileView {
       fillBtn.onclick = () => {
         o.fill = o.fill === false;
         fillBtn.toggleClass('is-active', o.fill !== false);
-        this.save();
+        this.touch();
       };
     }
 
@@ -1793,23 +1793,23 @@ class GraphiqueView extends TextFileView {
         const op = w.createEl('option', { text: tr('width.' + v) }); op.value = v;
       });
       w.value = String(o.width || 2);
-      w.onchange = () => { o.width = parseInt(w.value, 10); this.save(); };
+      w.onchange = () => { o.width = parseInt(w.value, 10); this.touch(); };
 
       const dash = style.createEl('button', { cls: 'graphique-toggle', text: '┄', attr: { title: tr('style.dash') } });
       dash.toggleClass('is-active', !!o.dash);
-      dash.onclick = () => { o.dash = !o.dash; dash.toggleClass('is-active', !!o.dash); this.save(); };
+      dash.onclick = () => { o.dash = !o.dash; dash.toggleClass('is-active', !!o.dash); this.touch(); };
     }
 
     if (isLine) {
       const eqBtn = style.createEl('button', { cls: 'graphique-toggle', text: 'f(x)', attr: { title: tr('style.eq') } });
       eqBtn.toggleClass('is-active', !!o.showEq);
-      eqBtn.onclick = () => { o.showEq = !o.showEq; eqBtn.toggleClass('is-active', !!o.showEq); this.save(); };
+      eqBtn.onclick = () => { o.showEq = !o.showEq; eqBtn.toggleClass('is-active', !!o.showEq); this.touch(); };
     }
 
     if (o.t === 'point') {
       const cBtn = style.createEl('button', { cls: 'graphique-toggle', text: '(x;y)', attr: { title: tr('style.coords') } });
       cBtn.toggleClass('is-active', !!o.showCoords);
-      cBtn.onclick = () => { o.showCoords = !o.showCoords; cBtn.toggleClass('is-active', !!o.showCoords); this.save(); };
+      cBtn.onclick = () => { o.showCoords = !o.showCoords; cBtn.toggleClass('is-active', !!o.showCoords); this.touch(); };
     }
 
     const del = iconButton(style, 'trash-2', '×', tr('style.delete'), 'graphique-toggle graphique-danger');
@@ -1817,7 +1817,7 @@ class GraphiqueView extends TextFileView {
       this.pushHistory();
       this.model.objects.splice(this.selected, 1);
       this.selected = -1;
-      this.save(); this.renderSelection();
+      this.touch(); this.renderSelection();
     };
   }
 
@@ -1835,15 +1835,15 @@ class GraphiqueView extends TextFileView {
     if (isLine) {
       menu.addItem((it) => it.setTitle(lineEquation(o)).setIcon('function-square').setDisabled(true));
       menu.addItem((it) => it.setTitle(tr(o.showEq ? 'menu.hideEq' : 'menu.showEq'))
-        .setIcon('eye').onClick(() => { this.pushHistory(); o.showEq = !o.showEq; this.save(); this.renderSelection(); }));
+        .setIcon('eye').onClick(() => { this.pushHistory(); o.showEq = !o.showEq; this.touch(); this.renderSelection(); }));
     }
     if (o.t === 'point') {
       menu.addItem((it) => it.setTitle('(' + fmt(round3(o.x)) + ' ; ' + fmt(round3(o.y)) + ')').setDisabled(true));
       menu.addItem((it) => it.setTitle(tr(o.showCoords ? 'menu.hideCoords' : 'menu.showCoords'))
-        .setIcon('eye').onClick(() => { this.pushHistory(); o.showCoords = !o.showCoords; this.save(); this.renderSelection(); }));
+        .setIcon('eye').onClick(() => { this.pushHistory(); o.showCoords = !o.showCoords; this.touch(); this.renderSelection(); }));
       if (o.link) {
         menu.addItem((it) => it.setTitle(tr('menu.detach')).setIcon('unlink')
-          .onClick(() => { this.pushHistory(); delete o.link; this.save(); this.renderSelection(); }));
+          .onClick(() => { this.pushHistory(); delete o.link; this.touch(); this.renderSelection(); }));
       }
     }
     if (o.t === 'poly') {
@@ -1854,14 +1854,14 @@ class GraphiqueView extends TextFileView {
     }
     if (isLine || o.t === 'poly' || o.t === 'ellipse') {
       menu.addItem((it) => it.setTitle(tr(o.dash ? 'menu.solid' : 'menu.dashed'))
-        .setIcon('minus').onClick(() => { this.pushHistory(); o.dash = !o.dash; this.save(); this.renderSelection(); }));
+        .setIcon('minus').onClick(() => { this.pushHistory(); o.dash = !o.dash; this.touch(); this.renderSelection(); }));
     }
     menu.addSeparator();
     menu.addItem((it) => it.setTitle(tr('menu.rename')).setIcon('pencil').onClick(() => {
       new AskModal(this.app, tr('modal.objectName'), (o.t === 'text' ? o.s : o.label) || '', (s) => {
         this.pushHistory();
         if (o.t === 'text') o.s = s; else o.label = s;
-        this.save(); this.renderSelection();
+        this.touch(); this.renderSelection();
       }).open();
     }));
     menu.addItem((it) => it.setTitle(tr('menu.duplicate')).setIcon('copy').onClick(() => this.duplicate(index)));
@@ -1870,7 +1870,7 @@ class GraphiqueView extends TextFileView {
       this.pushHistory();
       this.model.objects.splice(index, 1);
       this.selected = -1;
-      this.save(); this.renderSelection();
+      this.touch(); this.renderSelection();
     }));
     menu.showAtMouseEvent(e);
   }
@@ -1904,7 +1904,7 @@ class GraphiqueView extends TextFileView {
     else { c.x1 += dx; c.y1 -= dy; c.x2 += dx; c.y2 -= dy; }
     this.model.objects.push(c);
     this.selected = this.model.objects.length - 1;
-    this.save(); this.renderSelection();
+    this.touch(); this.renderSelection();
   }
 
   /* ---------------- intersections ---------------- */
@@ -1960,7 +1960,7 @@ class GraphiqueView extends TextFileView {
       });
     });
     this.selected = this.model.objects.length - 1;
-    this.save();
+    this.touch();
     this.renderSelection();
     this.hint(pts.length === 1
       ? tr('hint.oneInter', fmt(round3(pts[0].x)), fmt(round3(pts[0].y)))
@@ -1981,7 +1981,7 @@ class GraphiqueView extends TextFileView {
       x1: x - 1, y1: 0, x2: x + 1, y2: 0,
     });
     this.selected = this.model.objects.length - 1;
-    this.save();
+    this.touch();
     this.renderSelection();
     this.hint(tr('hint.tangentDone', fmt(round3(x))));
   }
@@ -2056,14 +2056,14 @@ class GraphiqueView extends TextFileView {
     if (o.anchors) {
       this.pushHistory();
       delete o.anchors;
-      this.save(); this.renderSelection();
+      this.touch(); this.renderSelection();
       return;
     }
     const res = this.anchorPolygon(o);
     if (!res.n) { this.hint(tr('hint.notAnchored')); return; }
     this.pushHistory();
     o.anchors = res.anchors;
-    this.save(); this.renderSelection();
+    this.touch(); this.renderSelection();
     this.hint(tr('hint.anchored', res.n));
   }
 
@@ -2077,7 +2077,7 @@ class GraphiqueView extends TextFileView {
     this.pushHistory();
     this.model.objects.push({ t: 'poly', id: uid(), pts: d.pts, color: d.color, width: SETTINGS.defaultWidth, fill: true, alpha: 0.18 });
     this.selected = this.model.objects.length - 1;
-    this.save();
+    this.touch();
     this.renderSelection();
     this.hint(tr('hint.zone'));
   }
@@ -2155,7 +2155,7 @@ class GraphiqueView extends TextFileView {
         this.pushHistory();
         this.model.objects.push({ t: 'point', id: uid(), x, y, color: this.color });
         this.selected = this.model.objects.length - 1;
-        this.save(); this.renderSelection();
+        this.touch(); this.renderSelection();
         return;
       }
 
@@ -2165,7 +2165,7 @@ class GraphiqueView extends TextFileView {
           this.pushHistory();
           this.model.objects.push({ t: 'text', id: uid(), x, y, s, color: this.color });
           this.selected = this.model.objects.length - 1;
-          this.save(); this.renderSelection();
+          this.touch(); this.renderSelection();
         }).open();
         return;
       }
@@ -2280,7 +2280,7 @@ class GraphiqueView extends TextFileView {
           this.selected = -1;
         }
         this.drag = null;
-        this.save();
+        this.touch();
         this.renderSelection();
       }
     });
@@ -2294,7 +2294,7 @@ class GraphiqueView extends TextFileView {
       new AskModal(this.app, tr(o.t === 'text' ? 'modal.editText' : 'modal.objectName'), current, (s) => {
         this.pushHistory();
         if (o.t === 'text') o.s = s; else o.label = s;
-        this.save(); this.renderSelection();
+        this.touch(); this.renderSelection();
       }).open();
     });
 
@@ -2458,7 +2458,7 @@ class GraphiqueView extends TextFileView {
       this.pushHistory();
       this.model.objects.splice(this.selected, 1);
       this.selected = -1;
-      this.save(); this.renderSelection();
+      this.touch(); this.renderSelection();
     } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault(); this.undo();
     } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
@@ -2477,7 +2477,7 @@ class GraphiqueView extends TextFileView {
       else if (o.t === 'poly') o.pts = o.pts.map((p) => [p[0] + dx, p[1] + dy]);
       else if (o.t === 'point' || o.t === 'text') { o.x += dx; o.y += dy; }
       else { o.x1 += dx; o.y1 += dy; o.x2 += dx; o.y2 += dy; }
-      this.save(); this.renderSelection();
+      this.touch(); this.renderSelection();
     } else if (e.key === 'Escape') {
       this.pending = null;
       this.select(-1);
@@ -2556,7 +2556,15 @@ class GraphiqueView extends TextFileView {
   }
 
   refresh() { this.buildPanel(); this.redraw(); }
-  save() { this.redraw(); this.requestSave(); }
+
+  /* 🔴 Ne JAMAIS nommer cette méthode save() : TextFileView mémorise une version
+     différée de sa propre save() à la construction, et une méthode de même nom
+     dans la sous-classe la remplace. La minuterie appelait alors la nôtre, qui
+     redemandait une sauvegarde, sans que rien ne soit jamais écrit. */
+  touch() {
+    this.redraw();
+    this.requestSave();
+  }
 
   saveLater() {
     window.clearTimeout(this._t);
@@ -2583,7 +2591,7 @@ class GraphiqueView extends TextFileView {
     const v = this.model.view;
     v.sx = Math.min(20000, Math.max(0.05, v.sx * k));
     v.sy = Math.min(20000, Math.max(0.05, v.sy * k));
-    this.save();
+    this.touch();
     this.buildPanel();
   }
 
