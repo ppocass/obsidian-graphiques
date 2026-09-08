@@ -23,7 +23,7 @@ function require(){ return { Plugin: class{}, TextFileView: class{constructor(){
   TFolder: class{}, TFile: class{} }; }
 var window={devicePixelRatio:1,setTimeout:function(){},clearTimeout:function(){},localStorage:{getItem:function(){return 'fr';}}};
 var document={body:{classList:{contains:function(){return false;}}},createElement:function(){return {};},head:{appendChild:function(){}}};
-var CLES_UTILISEES = """ + json.dumps(cles) + ";\n" + src.replace('module.exports =', 'var __plugin =')
+var CLES_UTILISEES = """ + json.dumps(cles) + ";\nvar SOURCE_MAIN = " + json.dumps(src) + ";\n" + src.replace('module.exports =', 'var __plugin =')
 for i, f in enumerate(fichiers):
     h += "\nvar r%d=(function(){%s})();" % (i, wrap(io.open(f, encoding='utf-8').read()))
 h += "\n" + "+'\\n'+".join('r%d' % i for i in range(len(fichiers)))

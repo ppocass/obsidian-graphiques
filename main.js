@@ -2855,10 +2855,13 @@ class GraphiquesSettingTab extends PluginSettingTab {
    décorer le texte dans l'éditeur lui-même. Obsidian expose CodeMirror aux
    plugins, sans étape de compilation. */
 function livePreviewExtension(plugin) {
-  let cm;
-  try { cm = require('@codemirror/view'); } catch (e) { return null; }
-  const state = (() => { try { return require('@codemirror/state'); } catch (e) { return null; } })();
-  if (!cm || !cm.ViewPlugin || !cm.Decoration || !cm.WidgetType || !state || !state.RangeSetBuilder) return null;
+  let cm, st;
+  try {
+    cm = require('@codemirror/view');
+    st = require('@codemirror/state');
+  } catch (e) { return null; }
+  if (!cm || !st || !cm.Decoration || !cm.WidgetType || !cm.EditorView) return null;
+  if (!st.StateField || !st.RangeSetBuilder) return null;
 
   const LIEN = /^!?\[\[([^\]|#^]+\.graph)(?:\|[^\]]*)?\]\]$/;
 
@@ -2876,39 +2879,39 @@ function livePreviewExtension(plugin) {
     ignoreEvent() { return true; }   // le déplacement et le zoom restent à nous
   }
 
-  return cm.ViewPlugin.fromClass(class {
-    constructor(vue) { this.decorations = this.construire(vue); }
-    update(maj) {
-      if (maj.docChanged || maj.viewportChanged || maj.selectionSet) {
-        this.decorations = this.construire(maj.view);
-      }
+  const construire = (etat) => {
+    const builder = new st.RangeSetBuilder();
+    if (!SETTINGS.plainLinkPreview) return builder.finish();
+    const curseur = etat.selection.main;
+    const actif = plugin.app.workspace.getActiveFile();
+    const source = actif ? actif.path : '';
+
+    for (let i = 1; i <= etat.doc.lines; i++) {
+      const ligne = etat.doc.line(i);
+      const texte = ligne.text.trim();
+      if (texte.length < 10 || texte.charCodeAt(0) !== 91) continue;   // gain : "[" seulement
+      const m = LIEN.exec(texte);
+      if (!m) continue;
+      // la ligne redevient du texte quand le curseur y est, sinon elle ne
+      // serait plus modifiable
+      if (curseur.from <= ligne.to && curseur.to >= ligne.from) continue;
+      builder.add(ligne.from, ligne.to, cm.Decoration.replace({
+        widget: new GraphiqueWidget(m[1], source),
+        block: true,
+      }));
     }
-    construire(vue) {
-      const builder = new state.RangeSetBuilder();
-      if (!SETTINGS.plainLinkPreview) return builder.finish();
-      const curseur = vue.state.selection.main;
-      const actif = plugin.app.workspace.getActiveFile();
-      const source = actif ? actif.path : '';
-      for (const plage of vue.visibleRanges) {
-        let pos = plage.from;
-        while (pos <= plage.to) {
-          const ligne = vue.state.doc.lineAt(pos);
-          const m = LIEN.exec(ligne.text.trim());
-          // on laisse la ligne en texte brut quand le curseur y est, sinon
-          // elle deviendrait impossible à modifier
-          const curseurDedans = curseur.from <= ligne.to && curseur.to >= ligne.from;
-          if (m && !curseurDedans) {
-            builder.add(ligne.from, ligne.to, cm.Decoration.replace({
-              widget: new GraphiqueWidget(m[1], source),
-              block: true,
-            }));
-          }
-          pos = ligne.to + 1;
-        }
-      }
-      return builder.finish();
-    }
-  }, { decorations: (v) => v.decorations });
+    return builder.finish();
+  };
+
+  /* 🔴 Passer par un StateField et non un ViewPlugin : CodeMirror refuse les
+     décorations de bloc venant d'un plugin de vue (« Block decorations may not
+     be specified via plugins »), et l'exception casse tout l'éditeur — curseur
+     qui saute, ⌘K qui ne répond plus. Erreur commise en 1.5.0. */
+  return st.StateField.define({
+    create: (etat) => construire(etat),
+    update: (deco, tr) => ((tr.docChanged || tr.selection) ? construire(tr.state) : deco),
+    provide: (f) => cm.EditorView.decorations.from(f),
+  });
 }
 
 module.exports = class GraphiquesPlugin extends Plugin {
