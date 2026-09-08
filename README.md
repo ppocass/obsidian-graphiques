@@ -27,7 +27,10 @@ step.
 - **Shaded areas**: under a curve between two bounds, or as free shapes.
 - **Export** to PNG and PDF, or copy the image to the clipboard.
 - **Note previews**: `![[my-graph.graph]]` renders the graph inside a note and
-  counts as a regular link, so it appears in the graph view and in backlinks.
+  counts as a regular link, so it appears in the graph view and in backlinks. A
+  plain `[[my-graph.graph]]` alone on its line renders the same way, without the
+  leading exclamation mark. Hold `Cmd` (`Ctrl` on Windows) over a preview to pan
+  and zoom it without opening the file; the framing stays local to that preview.
 - **Bilingual interface**: English and French.
 
 ## Usage

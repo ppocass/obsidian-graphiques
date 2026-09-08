@@ -36,7 +36,7 @@ else out.push('resolveLang cassé');
 // tous les réglages ont une valeur par défaut typée
 const attendus = ['language','showHelp','showCoords','showHints','panelWidth','snapDefault',
                   'defaultColor','defaultWidth','newQuadrant','newGrid','newAxes','newScale',
-                  'embedHeight','embedOpenButton'];
+                  'embedHeight','embedOpenButton','plainLinkPreview'];
 const absents = attendus.filter((k) => !(k in DEFAULT_SETTINGS));
 if (!absents.length) ok++; else out.push('réglages sans valeur par défaut : ' + absents.join(', '));
 

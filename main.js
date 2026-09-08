@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   newScale: 45,
   embedHeight: 380,
   embedOpenButton: true,
+  plainLinkPreview: true,   // [[figure.graph]] seul sur sa ligne s'affiche comme un aperçu
 };
 
 let SETTINGS = Object.assign({}, DEFAULT_SETTINGS);
@@ -153,6 +154,7 @@ const STRINGS = {
     'embed.notFound': 'Graphique introuvable : %s',
     'embed.unreadable': 'Ce graphique ne peut pas être lu.',
     'embed.open': 'Ouvrir',
+    'embed.reset': 'Recadrer',
     'set.general': 'Général',
     'set.language': 'Langue',
     'set.languageDesc': 'Langue de l\'interface du plugin.',
@@ -189,6 +191,8 @@ const STRINGS = {
     'set.embedHeightDesc': 'Hauteur des graphiques insérés dans une note, en pixels.',
     'set.embedButton': 'Bouton d\'ouverture',
     'set.embedButtonDesc': 'Affiche un bouton « Ouvrir » au survol d\'un aperçu.',
+    'set.plainLink': 'Liens simples affichés',
+    'set.plainLinkDesc': 'Un lien vers un graphique, seul sur sa ligne, s\'affiche comme un aperçu sans avoir à écrire le point d\'exclamation.',
   },
   en: {
     'view.title': 'Graph',
@@ -316,6 +320,7 @@ const STRINGS = {
     'embed.notFound': 'Graph not found: %s',
     'embed.unreadable': 'This graph cannot be read.',
     'embed.open': 'Open',
+    'embed.reset': 'Reset view',
     'set.general': 'General',
     'set.language': 'Language',
     'set.languageDesc': 'Language used by the plugin interface.',
@@ -352,6 +357,8 @@ const STRINGS = {
     'set.embedHeightDesc': 'Height of graphs embedded in a note, in pixels.',
     'set.embedButton': 'Open button',
     'set.embedButtonDesc': 'Show an “Open” button when hovering a preview.',
+    'set.plainLink': 'Render plain links',
+    'set.plainLinkDesc': 'A link to a graph, alone on its line, renders as a preview without needing the leading exclamation mark.',
   },
 };
 
@@ -2637,29 +2644,110 @@ class GraphiqueView extends TextFileView {
 /*  Aperçu d'un graphique dans une note                               */
 /* ================================================================== */
 
+/* Aperçu d'un graphique dans une note. Avec ⌘ (ou Ctrl) enfoncé, on peut
+   déplacer et zoomer sans ouvrir le fichier : le cadrage reste local à
+   l'aperçu, le fichier n'est jamais modifié. */
 function renderPreview(app, file, container, height) {
   const wrap = container.createDiv({ cls: 'graphique-embed' });
   const canvas = wrap.createEl('canvas');
-  let open = null;
+  const barre = wrap.createDiv({ cls: 'graphique-embed-actions' });
+
+  let modele = null;         // relu depuis le disque
+  let cadrage = null;        // cadrage local, null tant qu'on n'a rien bougé
+  let boutonReset = null;
+
   if (SETTINGS.embedOpenButton) {
-    open = wrap.createEl('button', { cls: 'graphique-embed-open', text: tr('embed.open') });
+    const open = barre.createEl('button', { cls: 'graphique-embed-open', text: tr('embed.open') });
     open.onclick = (e) => { e.preventDefault(); app.workspace.getLeaf(true).openFile(file); };
   }
 
-  const paint = async () => {
-    let model;
-    try { model = migrate(JSON.parse(await app.vault.cachedRead(file))); }
-    catch (e) { wrap.setText(tr('embed.unreadable')); return; }
+  const dessiner = () => {
+    if (!modele) return;
     const W = wrap.clientWidth || 600, H = height || SETTINGS.embedHeight || 380;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = W * dpr; canvas.height = H * dpr;
-    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    const cw = Math.round(W * dpr), ch = Math.round(H * dpr);
+    if (canvas.width !== cw || canvas.height !== ch) {
+      canvas.width = cw; canvas.height = ch;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    }
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    draw(ctx, model, W, H, themeOf(container));
+    const vue = cadrage ? Object.assign({}, modele, { view: cadrage }) : modele;
+    draw(ctx, vue, W, H, themeOf(container));
+  };
+
+  const majReset = () => {
+    if (cadrage && !boutonReset) {
+      boutonReset = barre.createEl('button', { cls: 'graphique-embed-open', text: tr('embed.reset') });
+      boutonReset.onclick = (e) => {
+        e.preventDefault();
+        cadrage = null;
+        boutonReset.remove(); boutonReset = null;
+        dessiner();
+      };
+    }
+  };
+
+  const cadrageCourant = () => {
+    if (!cadrage) cadrage = Object.assign({}, modele.view);
+    return cadrage;
+  };
+
+  const modif = (e) => e.metaKey || e.ctrlKey;   // ⌘ sur Mac, Ctrl ailleurs
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!modif(e) || !modele || e.button !== 0) return;
+    e.preventDefault();
+    const v = cadrageCourant();
+    const depart = { px: e.clientX, py: e.clientY, cx: v.cx, cy: v.cy };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.addClass('is-panning');
+
+    const bouge = (ev) => {
+      v.cx = depart.cx - (ev.clientX - depart.px) / v.sx;
+      v.cy = depart.cy + (ev.clientY - depart.py) / v.sy;
+      dessiner();
+    };
+    const fini = () => {
+      canvas.removeEventListener('pointermove', bouge);
+      canvas.removeEventListener('pointerup', fini);
+      canvas.removeClass('is-panning');
+      majReset();
+    };
+    canvas.addEventListener('pointermove', bouge);
+    canvas.addEventListener('pointerup', fini);
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    if (!modif(e) || !modele) return;            // sinon la note défile normalement
+    e.preventDefault();
+    const v = cadrageCourant();
+    const rect = canvas.getBoundingClientRect();
+    const W = rect.width, H = rect.height;
+    const avant = makeTransform({ view: v, style: modele.style }, W, H);
+    const wx = avant.wx(e.clientX - rect.left), wy = avant.wy(e.clientY - rect.top);
+    const k = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    v.sx = Math.min(20000, Math.max(0.05, v.sx * k));
+    v.sy = Math.min(20000, Math.max(0.05, v.sy * k));
+    const apres = makeTransform({ view: v, style: modele.style }, W, H);
+    v.cx += wx - apres.wx(e.clientX - rect.left);
+    v.cy += wy - apres.wy(e.clientY - rect.top);
+    dessiner();
+    majReset();
+  }, { passive: false });
+
+  // le curseur annonce qu'on peut attraper le graphique
+  const survol = (e) => canvas.toggleClass('is-grabbable', modif(e));
+  canvas.addEventListener('pointermove', survol);
+  canvas.addEventListener('pointerleave', () => canvas.removeClass('is-grabbable'));
+
+  const paint = async () => {
+    try { modele = migrate(JSON.parse(await app.vault.cachedRead(file))); }
+    catch (e) { wrap.setText(tr('embed.unreadable')); return; }
+    dessiner();
   };
   paint();
-  window.setTimeout(paint, 60);
+  window.setTimeout(dessiner, 60);
   return paint;
 }
 
@@ -2754,6 +2842,7 @@ class GraphiquesSettingTab extends PluginSettingTab {
       .onChange(async (v) => { SETTINGS.embedHeight = v; await enregistrer(); }));
 
     bascule('embedOpenButton', tr('set.embedButton'), tr('set.embedButtonDesc'));
+    bascule('plainLinkPreview', tr('set.plainLink'), tr('set.plainLinkDesc'));
   }
 }
 
@@ -2808,6 +2897,28 @@ module.exports = class GraphiquesPlugin extends Plugin {
     } catch (e) {
       this.embedOk = false;
     }
+
+    // Un lien simple vers un graphique, seul sur sa ligne, vaut une insertion :
+    // écrire le point d'exclamation n'est pas naturel et personne n'y pense.
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      if (!SETTINGS.plainLinkPreview) return;
+      const liens = Array.from(el.querySelectorAll('a.internal-link'));
+      for (const a of liens) {
+        const cible = a.getAttribute('data-href') || a.getAttribute('href') || '';
+        if (!cible.toLowerCase().endsWith('.' + EXT)) continue;
+
+        // uniquement si le lien est seul dans son paragraphe : au milieu d'une
+        // phrase, un graphique de 380 pixels de haut n'aurait aucun sens
+        const bloc = a.parentElement;
+        if (!bloc || bloc.textContent.trim() !== a.textContent.trim()) continue;
+
+        const file = this.app.metadataCache.getFirstLinkpathDest(cible, ctx.sourcePath);
+        if (!(file instanceof TFile)) continue;
+
+        bloc.empty();
+        renderPreview(this.app, file, bloc, SETTINGS.embedHeight);
+      }
+    });
 
     // Solution de repli : ```graph  file: chemin.graph  ```
     this.registerMarkdownCodeBlockProcessor('graph', async (src, el, ctx) => {

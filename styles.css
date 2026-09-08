@@ -331,16 +331,10 @@
   border-radius: var(--radius-m, 6px);
 }
 .graphique-embed-open {
-  position: absolute;
-  top: var(--size-4-2, 8px);
-  right: var(--size-4-2, 8px);
   height: 26px;
   padding: 0 var(--size-4-2, 8px);
   font-size: var(--font-ui-smaller);
-  opacity: 0;
-  transition: opacity 120ms ease;
 }
-.graphique-embed:hover .graphique-embed-open { opacity: 1; }
 .graphique-embed-error {
   padding: var(--size-4-3, 12px);
   border: 1px dashed var(--background-modifier-border);
@@ -348,3 +342,16 @@
   font-size: var(--font-ui-smaller);
   color: var(--text-error);
 }
+
+.graphique-embed-actions {
+  position: absolute;
+  top: var(--size-4-2, 8px);
+  right: var(--size-4-2, 8px);
+  display: flex;
+  gap: var(--size-2-2, 4px);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.graphique-embed:hover .graphique-embed-actions { opacity: 1; }
+.graphique-embed canvas.is-grabbable { cursor: grab; }
+.graphique-embed canvas.is-panning { cursor: grabbing; }
