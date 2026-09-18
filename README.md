@@ -1,4 +1,4 @@
-# Jexyllax's Graph
+# Graph by Jexyllax
 
 Draw mathematical and economics figures directly inside Obsidian notes: a
 coordinate grid, function curves typed from the keyboard, lines, geometric

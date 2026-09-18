@@ -1,7 +1,7 @@
 {
-  "id": "graphiques",
-  "name": "Jexyllax's Graph",
-  "version": "1.5.2",
+  "id": "jexyllax-graph",
+  "name": "Graph by Jexyllax",
+  "version": "1.6.0",
   "minAppVersion": "1.4.0",
   "description": "Draw graphs and figures in your notes: coordinate grid, function curves, lines, geometric shapes, computed intersection points and tangents, with PNG and PDF export.",
   "author": "Pierre Pocass",
